@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>동사 3단변화 퀴즈 게임</title>
+  <style>
+    body { background: #e3f2fd; font-family: 'Comic Sans MS', cursive, sans-serif; margin:0; height:100vh; display:flex; align-items:center; justify-content:center; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 24px; width: 90%; max-width: 480px; text-align: center; }
+    h1 { margin-top:0; color: #1976d2; }
+    #progress { font-weight: bold; margin-bottom:12px; }
+    #question { font-size: 1.3em; margin: 16px 0; }
+    input { width: calc(100% - 20px); padding: 8px; font-size:1em; border:2px solid #90caf9; border-radius:8px; margin-bottom:12px; }
+    button { background: #42a5f5; color: #fff; border:none; border-radius:8px; padding:10px 16px; font-size:1em; margin:4px; cursor:pointer; }
+    button:disabled { background: #bbdefb; cursor:not-allowed; }
+    #feedback { margin:12px 0; font-weight:bold; }
+    #scoreText, #timeText { margin:8px 0; }
+  </style>
+</head>
+<body>
+  <div class="card" id="intro">
+    <h1>동사 3단변화 퀴즈</h1>
+    <p>이름을 입력하세요:</p>
+    <input type="text" id="nameInput" placeholder="이름">
+    <button id="startBtn">시작하기</button>
+  </div>
+
+  <div class="card" id="quiz" style="display:none;">
+    <div id="progress"></div>
+    <div id="question"></div>
+    <input type="text" id="answer" placeholder="정답을 입력하세요">
+    <button id="submitBtn">제출</button>
+    <button id="nextBtn" style="display:none;">다음</button>
+    <div id="feedback"></div>
+  </div>
+
+  <div class="card" id="result" style="display:none;">
+    <h1>퀴즈 완료!</h1>
+    <div id="scoreText"></div>
+    <div id="timeText"></div>
+    <button id="sendBtn">점수 전송하기</button>
+    <div id="response"></div>
+  </div>
+
+  <script>
+    const verbs = [
+      {base:'cost', past:['cost'], part:['cost'], meaning:'비용이 들다'},
+      {base:'cast', past:['cast'], part:['cast'], meaning:'던지다'},
+      {base:'cut', past:['cut'], part:['cut'], meaning:'자르다'},
+      {base:'hit', past:['hit'], part:['hit'], meaning:'치다'},
+      {base:'hurt', past:['hurt'], part:['hurt'], meaning:'다치게 하다'},
+      {base:'let', past:['let'], part:['let'], meaning:'~하게 허락하다'},
+      {base:'put', past:['put'], part:['put'], meaning:'놓다, 두다'},
+      {base:'quit', past:['quit'], part:['quit'], meaning:'그만두다, 사직하다'},
+      {base:'read', past:['read'], part:['read'], meaning:'읽다'},
+      {base:'set', past:['set'], part:['set'], meaning:'정하다'},
+      {base:'shut', past:['shut'], part:['shut'], meaning:'닫다'},
+      {base:'spread', past:['spread'], part:['spread'], meaning:'퍼지다, 펴다'},
+      // A-B-B
+      {base:'bring', past:['brought'], part:['brought'], meaning:'데려오다'},
+      {base:'bend', past:['bent'], part:['bent'], meaning:'구부리다'},
+      {base:'bleed', past:['bled'], part:['bled'], meaning:'피를 흘리다'},
+      {base:'build', past:['built'], part:['built'], meaning:'짓다, 세우다'},
+      {base:'buy', past:['bought'], part:['bought'], meaning:'사다'},
+      {base:'catch', past:['caught'], part:['caught'], meaning:'잡다'},
+      {base:'dig', past:['dug'], part:['dug'], meaning:'파다'},
+      {base:'feel', past:['felt'], part:['felt'], meaning:'느끼다'},
+      {base:'fight', past:['fought'], part:['fought'], meaning:'싸우다'},
+      {base:'find', past:['found'], part:['found'], meaning:'찾다'},
+      {base:'feed', past:['fed'], part:['fed'], meaning:'먹이를 주다'},
+      {base:'get', past:['got'], part:['got','gotten'], meaning:'얻다, 받다'},
+      {base:'hang', past:['hung'], part:['hung'], meaning:'매달다'},
+      {base:'have', past:['had'], part:['had'], meaning:'가지다'},
+      {base:'hear', past:['heard'], part:['heard'], meaning:'듣다'},
+      {base:'hold', past:['held'], part:['held'], meaning:'잡다, 개최하다'},
+      {base:'keep', past:['kept'], part:['kept'], meaning:'지키다'},
+      {base:'lay', past:['laid'], part:['laid'], meaning:'낳다, 놓다'},
+      {base:'lend', past:['lent'], part:['lent'], meaning:'빌려주다'},
+      {base:'lead', past:['led'], part:['led'], meaning:'이끌다'},
+      {base:'leave', past:['left'], part:['left'], meaning:'떠나다'},
+      {base:'light', past:['lit','lighted'], part:['lit','lighted'], meaning:'불을 켜다'},
+      {base:'lose', past:['lost'], part:['lost'], meaning:'잃다, 지다'},
+      {base:'meet', past:['met'], part:['met'], meaning:'만나다'},
+      {base:'mean', past:['meant'], part:['meant'], meaning:'의미하다'},
+      {base:'make', past:['made'], part:['made'], meaning:'만들다'},
+      {base:'pay', past:['paid'], part:['paid'], meaning:'지불하다'},
+      {base:'say', past:['said'], part:['said'], meaning:'말하다'},
+      {base:'sell', past:['sold'], part:['sold'], meaning:'팔다'},
+      {base:'send', past:['sent'], part:['sent'], meaning:'보내다'},
+      {base:'sit', past:['sat'], part:['sat'], meaning:'앉다'},
+      {base:'shine', past:['shone','shined'], part:['shone','shined'], meaning:'빛나다'},
+      {base:'shoot', past:['shot'], part:['shot'], meaning:'쏘다'},
+      {base:'sleep', past:['slept'], part:['slept'], meaning:'자다'},
+      {base:'slide', past:['slid'], part:['slid'], meaning:'미끄러지다'},
+      {base:'spend', past:['spent'], part:['spent'], meaning:'(돈, 시간)쓰다'},
+      {base:'stand', past:['stood'], part:['stood'], meaning:'서다'},
+      {base:'think', past:['thought'], part:['thought'], meaning:'생각하다'},
+      {base:'teach', past:['taught'], part:['taught'], meaning:'가르치다'},
+      {base:'tell', past:['told'], part:['told'], meaning:'말하다'},
+      {base:'win', past:['won'], part:['won'], meaning:'이기다'},
+      {base:'wind', past:['wound'], part:['wound'], meaning:'감다'},
+      // A-B-C
+      {base:'begin', past:['began'], part:['begun'], meaning:'시작하다'},
+      {base:'bear', past:['bore'], part:['born'], meaning:'낳다, 품다'},
+      {base:'bite', past:['bit'], part:['bitten'], meaning:'물다'},
+      {base:'break', past:['broke'], part:['broken'], meaning:'깨뜨리다'},
+      {base:'blow', past:['blew'], part:['blown'], meaning:'불다'},
+      {base:'choose', past:['chose'], part:['chosen'], meaning:'선택하다'},
+      {base:'drink', past:['drank'], part:['drunk'], meaning:'마시다'},
+      {base:'do', past:['did'], part:['done'], meaning:'하다'},
+      {base:'draw', past:['drew'], part:['drawn'], meaning:'그리다, 당기다'},
+      {base:'drive', past:['drove'], part:['driven'], meaning:'운전하다'},
+      {base:'eat', past:['ate'], part:['eaten'], meaning:'먹다'},
+      {base:'fall', past:['fell'], part:['fallen'], meaning:'떨어지다'},
+      {base:'fly', past:['flew'], part:['flown'], meaning:'날다'},
+      {base:'forget', past:['forgot'], part:['forgotten'], meaning:'잊다'},
+      {base:'forgive', past:['forgave'], part:['forgiven'], meaning:'용서하다'},
+      {base:'freeze', past:['froze'], part:['frozen'], meaning:'얼다'},
+      {base:'give', past:['gave'], part:['given'], meaning:'주다'},
+      {base:'go', past:['went'], part:['gone'], meaning:'가다'},
+      {base:'grow', past:['grew'], part:['grown'], meaning:'자라다'},
+      {base:'hide', past:['hid'], part:['hid','hidden'], meaning:'숨기다'},
+      {base:'know', past:['knew'], part:['known'], meaning:'알다'},
+      {base:'lie', past:['lay'], part:['lain'], meaning:'눕다, 놓여 있다'},
+      {base:'mistake', past:['mistook'], part:['mistaken'], meaning:'실수하다'},
+      {base:'prove', past:['proved'], part:['proven','proved'], meaning:'증명하다'},
+      {base:'ring', past:['rang'], part:['rung'], meaning:'울리다'},
+      {base:'ride', past:['rode'], part:['ridden'], meaning:'타다'},
+      {base:'rise', past:['rose'], part:['risen'], meaning:'올라가다, 증가하다'},
+      {base:'see', past:['saw'], part:['seen'], meaning:'보다'},
+      {base:'sink', past:['sank'], part:['sunk'], meaning:'가라앉다'},
+      {base:'sing', past:['sang'], part:['sung'], meaning:'노래하다'},
+      {base:'speak', past:['spoke'], part:['spoken'], meaning:'말하다'},
+      {base:'steal', past:['stole'], part:['stolen'], meaning:'훔치다'},
+      {base:'shake', past:['shook'], part:['shaken'], meaning:'흔들다'},
+      {base:'show', past:['showed'], part:['shown','showed'], meaning:'보여주다'},
+      {base:'spring', past:['sprang'], part:['sprung'], meaning:'튀다, 뛰어오르다'},
+      {base:'swim', past:['swam'], part:['swum'], meaning:'헤엄치다'},
+      {base:'take', past:['took'], part:['taken'], meaning:'받다, 취하다'},
+      {base:'tear', past:['tore'], part:['torn'], meaning:'찢다'},
+      {base:'throw', past:['threw'], part:['thrown'], meaning:'던지다'},
+      {base:'wake', past:['woke'], part:['woken'], meaning:'깨우다'},
+      {base:'wear', past:['wore'], part:['worn'], meaning:'입다'},
+      {base:'write', past:['wrote'], part:['written'], meaning:'쓰다'},
+      // A-B-A
+      {base:'come', past:['came'], part:['come'], meaning:'오다'},
+      {base:'become', past:['became'], part:['become'], meaning:'되다'},
+      {base:'run', past:['ran'], part:['run'], meaning:'달리다'},
+      {base:'overcome', past:['overcame'], part:['overcome'], meaning:'극복하다'}
+    ];
+
+    const intro = document.getElementById('intro');
+    const quiz = document.getElementById('quiz');
+    const result = document.getElementById('result');
+    const nameInput = document.getElementById('nameInput');
+    const startBtn = document.getElementById('startBtn');
+    const progressEl = document.getElementById('progress');
+    const questionEl = document.getElementById('question');
+    const answerInput = document.getElementById('answer');
+    const submitBtn = document.getElementById('submitBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const feedback = document.getElementById('feedback');
+    const scoreText = document.getElementById('scoreText');
+    const timeText = document.getElementById('timeText');
+    const sendBtn = document.getElementById('sendBtn');
+    const responseEl = document.getElementById('response');
+
+    let player, startTime, score=0;
+    let setNum=0, qIdx=0, pool=[];
+
+    startBtn.addEventListener('click', ()=>{
+      if(!nameInput.value.trim()) return;
+      player = nameInput.value.trim();
+      intro.style.display='none'; quiz.style.display='block';
+      startTime = Date.now(); score=0; setNum=0;
+      nextSet();
+    });
+
+    function nextSet(){
+      setNum++;
+      if(setNum>3) return showResult();
+      pool = shuffle(verbs.slice()); qIdx=0;
+      showQ();
+    }
+
+    function showQ(){
+      const v = pool[qIdx];
+      progressEl.innerText = `세트 ${setNum} - 문제 ${qIdx+1}/${pool.length}`;
+      feedback.innerText = '';
+      answerInput.value=''; submitBtn.style.display='inline-block'; nextBtn.style.display='none';
+      if(setNum===1) questionEl.innerText = `동사 '${v.base}'의 뜻은?`;
+      if(setNum===2) questionEl.innerText = `동사 '${v.base}'의 과거형은?`;
+      if(setNum===3) questionEl.innerText = `동사 '${v.base}'의 과거분사형은?`;
+    }
+
+    submitBtn.addEventListener('click', ()=>{
+      const v = pool[qIdx];
+      const ans = answerInput.value.trim().toLowerCase();
+      let ok=false;
+      if(setNum===1){ ok = (ans===v.meaning); }
+      if(setNum===2){ ok = v.past.some(p=>p.toLowerCase()===ans); }
+      if(setNum===3){ ok = v.part.some(p=>p.toLowerCase()===ans); }
+      if(ok){ feedback.style.color='green'; feedback.innerText='정답! +10점'; score+=10; }
+      else{
+        feedback.style.color='red';
+        let correct = setNum===1? v.meaning : (setNum===2? v.past.join('/') : v.part.join('/'));
+        feedback.innerText = `오답! 정답: ${correct}`;
+      }
+      submitBtn.style.display='none'; nextBtn.style.display='inline-block';
+    });
+
+    nextBtn.addEventListener('click', ()=>{
+      qIdx++;
+      if(qIdx<pool.length) showQ(); else nextSet();
+    });
+
+    function showResult(){ quiz.style.display='none'; result.style.display='block';
+      const elapsed = Math.floor((Date.now()-startTime)/1000);
+      scoreText.innerText = `총 점수: ${score}`;
+      timeText.innerText = `걸린 시간: ${elapsed}초`;
+      sendBtn.addEventListener('click', ()=> saveData('irregularVerbs', player, score, elapsed));
+    }
+
+    function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+
+    function saveData(game,name,score,elapsedTime){
+      const url = "https://us-central1-record-f420d.cloudfunctions.net/report";
+      const data = {game,name,score:parseInt(score),elapsedTime:parseInt(elapsedTime)};
+      fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+        .then(res=>res.json().then(d=>{ responseEl.innerText = res.ok?`성공: ${JSON.stringify(d, null,2)}`:`오류: ${JSON.stringify(d,null,2)}`;}))
+        .catch(e=> responseEl.innerText = `네트워크 오류: ${e.message}`);
+    }
+  </script>
+</body>
+</html>
