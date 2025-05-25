@@ -165,70 +165,144 @@
     const sendBtn = document.getElementById('sendBtn');
     const responseEl = document.getElementById('response');
 
-    let player, startTime, score=0;
-    let setNum=0, qIdx=0, pool=[];
+    let player, startTime, score = 0;
+    let setNum = 0, qIdx = 0, pool = [];
+    let isPreview = true, previewIndex = 0;
+    const previewPool = verbs.slice();
 
-    startBtn.addEventListener('click', ()=>{
-      if(!nameInput.value.trim()) return;
+    startBtn.addEventListener('click', () => {
+      if (!nameInput.value.trim()) return;
       player = nameInput.value.trim();
-      intro.style.display='none'; quiz.style.display='block';
-      startTime = Date.now(); score=0; setNum=0;
-      nextSet();
+      intro.style.display = 'none';
+      quiz.style.display = 'block';
+      startTime = Date.now();
+      score = 0;
+      setNum = 0;
+      isPreview = true;
+      previewIndex = 0;
+      showPreview();
     });
 
-    function nextSet(){
+    function showPreview() {
+      const v = previewPool[previewIndex];
+      progressEl.innerText = `예습 ${previewIndex + 1} / ${previewPool.length}`;
+      questionEl.innerText = `동사: ${v.base}`;
+      feedback.innerText = `과거: ${v.past.join('/')}  |  과거분사: ${v.part.join('/')}  |  의미: ${v.meaning}`;
+      answerInput.style.display = 'none';
+      submitBtn.style.display = 'none';
+      nextBtn.style.display = 'inline-block';
+    }
+
+    nextBtn.addEventListener('click', () => {
+      if (isPreview) {
+        previewIndex++;
+        if (previewIndex < previewPool.length) {
+          showPreview();
+        } else {
+          isPreview = false;
+          nextBtn.style.display = 'none';
+          nextSet();
+        }
+      } else {
+        // 퀴즈 다음
+        qIdx++;
+        if (qIdx < pool.length) {
+          showQ();
+        } else {
+          nextSet();
+        }
+      }
+    });
+
+    function nextSet() {
       setNum++;
-      if(setNum>3) return showResult();
-      pool = shuffle(verbs.slice()); qIdx=0;
-      showQ();
+      if (setNum > 3) {
+        showResult();
+      } else {
+        pool = shuffle(verbs.slice());
+        qIdx = 0;
+        showQ();
+      }
     }
 
-    function showQ(){
+    function showQ() {
       const v = pool[qIdx];
-      progressEl.innerText = `세트 ${setNum} - 문제 ${qIdx+1}/${pool.length}`;
+      progressEl.innerText = `세트 ${setNum} - 문제 ${qIdx + 1} / ${pool.length}`;
       feedback.innerText = '';
-      answerInput.value=''; submitBtn.style.display='inline-block'; nextBtn.style.display='none';
-      if(setNum===1) questionEl.innerText = `동사 '${v.base}'의 뜻은?`;
-      if(setNum===2) questionEl.innerText = `동사 '${v.base}'의 과거형은?`;
-      if(setNum===3) questionEl.innerText = `동사 '${v.base}'의 과거분사형은?`;
+      answerInput.value = '';
+      answerInput.style.display = 'inline-block';
+      submitBtn.style.display = 'inline-block';
+      nextBtn.style.display = 'none';
+
+      if (setNum === 1) {
+        questionEl.innerText = `동사 '${v.base}'의 뜻은?`;
+      } else if (setNum === 2) {
+        questionEl.innerText = `동사 '${v.base}'의 과거형은?`;
+      } else if (setNum === 3) {
+        questionEl.innerText = `동사 '${v.base}'의 과거분사형은?`;
+      }
     }
 
-    submitBtn.addEventListener('click', ()=>{
+    submitBtn.addEventListener('click', () => {
       const v = pool[qIdx];
       const ans = answerInput.value.trim().toLowerCase();
-      let ok=false;
-      if(setNum===1){ ok = (ans===v.meaning); }
-      if(setNum===2){ ok = v.past.some(p=>p.toLowerCase()===ans); }
-      if(setNum===3){ ok = v.part.some(p=>p.toLowerCase()===ans); }
-      if(ok){ feedback.style.color='green'; feedback.innerText='정답! +10점'; score+=10; }
-      else{
-        feedback.style.color='red';
-        let correct = setNum===1? v.meaning : (setNum===2? v.past.join('/') : v.part.join('/'));
+      let ok = false;
+
+      if (setNum === 1) {
+        const variants = v.meaning.split(',').map(s => s.trim().toLowerCase());
+        ok = variants.includes(ans);
+      } else if (setNum === 2) {
+        ok = v.past.some(p => p.toLowerCase() === ans);
+      } else if (setNum === 3) {
+        ok = v.part.some(p => p.toLowerCase() === ans);
+      }
+
+      if (ok) {
+        feedback.style.color = 'green';
+        feedback.innerText = '정답! +10점';
+        score += 10;
+      } else {
+        feedback.style.color = 'red';
+        let correct;
+        if (setNum === 1) correct = v.meaning;
+        else if (setNum === 2) correct = v.past.join('/');
+        else correct = v.part.join('/');
         feedback.innerText = `오답! 정답: ${correct}`;
       }
-      submitBtn.style.display='none'; nextBtn.style.display='inline-block';
+
+      submitBtn.style.display = 'none';
+      nextBtn.style.display = 'inline-block';
     });
 
-    nextBtn.addEventListener('click', ()=>{
-      qIdx++;
-      if(qIdx<pool.length) showQ(); else nextSet();
-    });
-
-    function showResult(){ quiz.style.display='none'; result.style.display='block';
-      const elapsed = Math.floor((Date.now()-startTime)/1000);
+    function showResult() {
+      quiz.style.display = 'none';
+      result.style.display = 'block';
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
       scoreText.innerText = `총 점수: ${score}`;
       timeText.innerText = `걸린 시간: ${elapsed}초`;
-      sendBtn.addEventListener('click', ()=> saveData('irregularVerbs', player, score, elapsed));
+      sendBtn.addEventListener('click', () => saveData('irregularVerbs', player, score, elapsed));
     }
 
-    function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+    function shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
 
-    function saveData(game,name,score,elapsedTime){
+    function saveData(game, name, score, elapsedTime) {
       const url = "https://us-central1-record-f420d.cloudfunctions.net/report";
-      const data = {game,name,score:parseInt(score),elapsedTime:parseInt(elapsedTime)};
-      fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-        .then(res=>res.json().then(d=>{ responseEl.innerText = res.ok?`성공: ${JSON.stringify(d, null,2)}`:`오류: ${JSON.stringify(d,null,2)}`;}))
-        .catch(e=> responseEl.innerText = `네트워크 오류: ${e.message}`);
+      const data = { game, name, score: parseInt(score), elapsedTime: parseInt(elapsedTime) };
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json().then(d => {
+        responseEl.innerText = res.ok ? `성공: ${JSON.stringify(d, null, 2)}` : `오류: ${JSON.stringify(d, null, 2)}`;
+      }))
+      .catch(e => responseEl.innerText = `네트워크 오류: ${e.message}`);
     }
   </script>
 </body>
